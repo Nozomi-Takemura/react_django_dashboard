@@ -1,9 +1,14 @@
+import uuid
 # from django.apps import apps
 from django.contrib.auth.models import (
     BaseUserManager, AbstractBaseUser
 )
 from django.contrib.auth.hashers import make_password
 from django.db import models
+from django.utils import timezone
+from django.contrib.postgres.fields.array import ArrayField
+from django.core.validators import RegexValidator
+
 # Create your models here.
 
 class CustomUserManager(BaseUserManager):
@@ -63,7 +68,13 @@ class CustomPermissionsMixin(models.Model):
         Return True if the user has the specified permission. Query all
         available auth backends, but return immediately if any backend returns
         True. Thus, a user who has permission from a single auth backend is
-        assumed to have permission in general. If an object is provided, check
+        assumefrom django.core.validators import RegexValidator
+
+class PhoneModel(models.Model):
+    ...
+    phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
+    phone_number = models.CharField(validators=[phone_regex], max_length=17, blank=True) # Validators should be a list
+d to have permission in general. If an object is provided, check
         permissions for that object.
         """
         # Active admins have all permissions.
@@ -114,3 +125,123 @@ class CustomUser(AbstractBaseUser,CustomPermissionsMixin):
         "Is the user a member of staff?"
         # design - all admins are staff
         return self.is_admin
+
+# class ApplicationAccount():
+#     pass
+# class ApplicationArtifact():
+#     pass
+# class ApplicationRole():
+#     pass
+# q. can we use "User"? --> Django default
+class ApplicationUser(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    # not string
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    firstname = models.CharField(max_length=20)
+    lastname = models.CharField(max_length=20)
+    # we use json here
+    # To do
+    # add en/de-coder here to parse the field
+    additionalnames = ArrayField(base_field=models.CharField(max_length=20),verbose_name="additional names",size=10)
+    creationdate = models.DateTimeField(
+        verbose_name="create date",
+        default = timezone.now(),
+        max_length=20
+    )
+    accountid = models.CharField(max_length=50)
+    roleid = models.CharField(max_length=50)
+    phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
+    phone_number = models.CharField(verbose_name="phone number",validators=(phone_regex,), max_length=15)
+
+
+
+
+"""
+    ApplicationAccount:
+
+        Id: string
+
+        Name: string
+
+        OwnerId: string
+
+        Email: string(see if there is special datatype in Jagno)
+
+        Status: Enum(preferably - see Jagno)
+
+            Submitted
+
+            Approved
+
+            Cancelled
+
+        CreationDate: (see if there is special datatype in Jango)
+
+        Address: string
+
+        City: string
+
+        State: string
+
+        ZIP: string
+
+        Company: string
+
+    ApplicationArtifact
+
+        Id: string
+
+        AccountId: string
+
+        CreatorId: string
+
+        ResourceKind: Enum(preferably - see Jango)
+
+            RFDataContract
+
+            MLModel
+
+            MLInput
+
+            RFModel
+
+            …
+
+        IsAvtive: bool
+
+    ApplicationRole
+
+        Id: string
+
+        Name: string
+
+        Description: string(see in Jango how to regulate the string length. Here we need something not too long.)
+
+        All other Jango specific needed fields.
+
+    ApplicationUser
+
+        Id: string
+
+        FirstName: string
+
+        AdditionalNames(optional): string[](In the databases we don’t have array, so we have to parse it.)
+
+        LastName: string
+
+        CreationDate: (see if there is special datatype in Jango) 
+
+        AccountId: string
+
+        RoleId: string
+
+        Email Address
+
+        Phone Number
+
+        All other Jango specific needed fields for the credentials and etc.
+"""
