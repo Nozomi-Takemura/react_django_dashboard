@@ -108,6 +108,7 @@ class CustomUser(AbstractBaseUser,CustomPermissionsMixin):
 
     objects = CustomUserManager()
     
+    # property -- getter func
     @property
     def is_staff(self):
         "Is the user a member of staff?"
