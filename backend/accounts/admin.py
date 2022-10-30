@@ -1,9 +1,15 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.contrib.auth.admin import UserAdmin
-from .models import ApplicationUser
-from .forms import ApplicationUserChangeForm, ApplicationUserCreationForm
+from django.contrib.auth.admin import UserAdmin, GroupAdmin
+from .models import (
+    ApplicationUser, ApplicationAccount, ApplicationArtifact,
+    ApplicationRole,
+)
+from .forms import (
+    ApplicationUserChangeForm, ApplicationUserCreationForm,
+    # ApplicationAccountChangeForm, ApplicationAccountCreationForm,
+)
 # Register your models here.apps
 
 
@@ -35,15 +41,19 @@ class ApplicationUserAdmin(UserAdmin):
 
     add_fieldsets = (
         (None, {
-            'class': ('wide',),
-            'fields': ("email", 'password1', 'password2'),
+            # 'class': ('wide',),
+            'fields': ("email", 'password'),
+            # 'fields': ("email", 'password1', 'password2'),
         }),
     )
 
     search_field = ('email',)
+@admin.register(ApplicationRole)
+class ApplicationRoleAdmin(GroupAdmin):
+    pass
 
 # register the new UserAdmin
 admin.site.register(get_user_model(), ApplicationUserAdmin)
-
-
-
+admin.site.register(ApplicationAccount)
+admin.site.register(ApplicationArtifact)
+# admin.site.register(ApplicationRole,ApplicationRoleAdmin)

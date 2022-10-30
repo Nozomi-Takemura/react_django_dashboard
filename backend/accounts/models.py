@@ -66,6 +66,47 @@ class CustomUserManager(BaseUserManager):
 
     # no change on def with_perm...
 
+class ApplicationRoleManager(models.Manager):
+    """
+    The manager for the auth's Group model.
+    """
+
+    use_in_migrations = True
+
+    def get_by_natural_key(self, name):
+        return self.get(name=name)
+
+
+class ApplicationRole(models.Model):
+    """
+    """
+    # id: temporary skipped b.c. Group does not have it 
+
+    # Name: string
+    name = models.CharField(_("name"), max_length=150, unique=True)
+
+    # Description: string(see in Jango how to regulate the string length. Here we need something not too long.)
+    description = models.CharField(_("description"), max_length=150, unique=True)
+
+
+    permissions = models.ManyToManyField(
+        Permission,
+        verbose_name=_("permissions"),
+        blank=True,
+    )
+
+    objects = ApplicationRoleManager()
+
+    class Meta:
+        verbose_name = _("applicationrole")
+        verbose_name_plural = _("applicationroles")
+
+    def __str__(self):
+        return self.name
+
+    def natural_key(self):
+        return (self.name,)
+
 # 99% just copy of PermissionsMixin...
 class CustomPermissionsMixin(models.Model):
     """
@@ -79,6 +120,18 @@ class CustomPermissionsMixin(models.Model):
             "Designates that this user has all permissions without "
             "explicitly assigning them."
         ),
+    )
+
+    applicationroles = models.ManyToManyField(
+        ApplicationRole,
+        verbose_name=_("applicationroles"),
+        blank=True,
+        help_text=_(
+            "The role this user is assigned to. A user will get all permissions "
+            "granted to each of their roles."
+        ),
+        related_name="applicationuser_set",
+        related_query_name="applicationuser",
     )
 
     groups = models.ManyToManyField(
@@ -141,8 +194,24 @@ class CustomPermissionsMixin(models.Model):
     class Meta:
         abstract = True 
 
+# Todo chained-drop down would be ideal 
+class AddressModelMixin(models.Model):
+    address1 = models.CharField('Address line 1', max_length=50)
+    address2 = models.CharField('Address line 2', max_length=50, blank=True)
+    city = models.CharField('City', max_length=20),
+    state = models.CharField('State', max_length=20)
+    zip_code = models.CharField('ZIP', max_length=12)
+    company = models.CharField('Company', max_length=20) 
+
+    class Meta:
+        abstract = True
+
 # eventually, this is just a copy and past from 'class AbstractUser'
 # duplicated to allow us to customize later if necessary
+# assumed the uniquness of email add <-- this can be changed by design...
+# assumed that an account is linked to an email...
+# e.g.
+# An user subscribes a program with 20 accounts(he is an owner).
 class ApplicationUser(AbstractBaseUser,CustomPermissionsMixin):
     #Id: string
      # not string
@@ -168,13 +237,16 @@ class ApplicationUser(AbstractBaseUser,CustomPermissionsMixin):
     #CreationDate: (see if there is special datatype in Jango) 
     creation_date = models.DateTimeField(_("creation date"), default=timezone.now)
     #AccountId: string
-    accountid = models.UUIDField(
-        primary_key=False,
-        default=uuid.uuid4,
-        editable=False
+     # temporary remove b.c. this can be reachable via email
+    accountid = models.ForeignKey(
+        'ApplicationAccount',
+        on_delete = models.CASCADE,
+        blank = True,
+        null = True,
+        # related_name='owner_accountid'
     )
+
     #RoleId: string
-    # temporary drop roleid b.c. "group"-based permission is available by def. in django 
     # inherit 'Group' from CustomPermissionsMixin class
 
     #Email Address
@@ -248,101 +320,105 @@ class ApplicationUser(AbstractBaseUser,CustomPermissionsMixin):
         """Send an email to this user."""
         send_mail(subject, message, from_email, [self.email], **kwargs)
 
+# all the acounts including owner
+class ApplicationAccount(AddressModelMixin):
+    #id: string
 
-# class ApplicationAccount():
-#     pass
-# class ApplicationArtifact():
-#     pass
-# class ApplicationRole():
-#     pass
-# q. can we use "User"? --> Django default
-# class ApplicationUser(CustomAbstractUser):
-#     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+
+    # Name: string
+    name = models.CharField(_("name"), max_length=20, blank=True)
+    
+    # OwnerId: string
+    ownerid = models.ForeignKey(
+        'ApplicationUser',
+        on_delete=models.CASCADE,
+    )
+
+    # Email: string(see if there is special datatype in Jagno)
+    email_validator = EmailValidator()
+    email = models.EmailField(
+        verbose_name='email address',
+        max_length=255,
+        unique=False,
+        validators=[email_validator],
+        # error_messages={
+        #   "unique": _("An user with that email already exists."),
+        # },
+    )
+
+    # Status: Enum(preferably - see Jagno)
+    #    Submitted
+    #    Approved
+    #    Cancelled
+    Submitted = 'S'
+    Approved = 'A'
+    Cancelled = 'C'
+    STATUS = [
+        (Submitted, 'Submitted'),
+        (Approved, 'Approved'),
+        (Cancelled, 'Cancelled'),    
+    ]
+    status = models.CharField(
+        max_length=1,
+        choices=STATUS,
+    )
+
+    # CreationDate: (see if there is special datatype in Jango)
+    creation_date = models.DateTimeField(_("creation date"), default=timezone.now)
+
+    # Address: string, City: string, State: string, ZIP: string, Company: string
+    # <-- AddressModelMixin
 
 
+class ApplicationArtifact(models.Model):
+    # Id: string
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
 
-"""
-    ApplicationAccount:
+    # AccountId: string
+    accountid = models.ForeignKey(
+        'ApplicationAccount',
+        on_delete = models.CASCADE,
+        # related_name='owner_accountid'
+    )
 
-        Id: string
+    # CreatorId: string
+    createrid = models.ForeignKey(
+        'ApplicationUser',
+        on_delete=models.CASCADE,
+    )
 
-        Name: string
+    # ResourceKind: Enum(preferably - see Jango)
+    #  RFDataContract
+    #  MLModel
+    #  MLInput
+    #  RFModel
+    RFDataContract = 'RFDataContract'
+    MLModel = 'MLModel'
+    MLInput = 'MLInput'
+    RFModel = 'RFModel'
+    RESOURCEKIND = [
+        (RFDataContract, 'Reinforcement learning data contract'),
+        (MLModel, 'Machine learning model'),
+        (MLInput, 'Machine learning input data'),    
+        (RFModel, 'Reinforcement learning model'),    
+    ]
+    resourcekind = models.CharField(
+        max_length=20,
+        choices=RESOURCEKIND,
+    )    
 
-        OwnerId: string
-
-        Email: string(see if there is special datatype in Jagno)
-
-        Status: Enum(preferably - see Jagno)
-
-            Submitted
-
-            Approved
-
-            Cancelled
-
-        CreationDate: (see if there is special datatype in Jango)
-
-        Address: string
-
-        City: string
-
-        State: string
-
-        ZIP: string
-
-        Company: string
-
-    ApplicationArtifact
-
-        Id: string
-
-        AccountId: string
-
-        CreatorId: string
-
-        ResourceKind: Enum(preferably - see Jango)
-
-            RFDataContract
-
-            MLModel
-
-            MLInput
-
-            RFModel
-
-            …
-
-        IsAvtive: bool
-
-    ApplicationRole
-
-        Id: string
-
-        Name: string
-
-        Description: string(see in Jango how to regulate the string length. Here we need something not too long.)
-
-        All other Jango specific needed fields.
-
-    ApplicationUser
-
-        Id: string
-
-        FirstName: string
-
-        AdditionalNames(optional): string[](In the databases we don’t have array, so we have to parse it.)
-
-        LastName: string
-
-        CreationDate: (see if there is special datatype in Jango) 
-
-        AccountId: string
-
-        RoleId: string
-
-        Email Address
-
-        Phone Number
-
-        All other Jango specific needed fields for the credentials and etc.
-"""
+    # IsAvtive: bool
+    is_active = models.BooleanField(
+        _("active"),
+        default=True,
+        # help_text=_(),
+    )       
