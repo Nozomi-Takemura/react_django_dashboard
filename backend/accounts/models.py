@@ -4,10 +4,14 @@ from django.contrib.auth.models import (
     BaseUserManager, AbstractBaseUser
 )
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import Group, Permission
 from django.db import models
 from django.utils import timezone
 from django.contrib.postgres.fields.array import ArrayField
-from django.core.validators import RegexValidator
+from django.core.validators import RegexValidator, EmailValidator
+from django.utils.translation import gettext_lazy as _
+
+# test
 
 # Create your models here.
 
@@ -45,40 +49,69 @@ class CustomUserManager(BaseUserManager):
         return user
 
     def create_user(self, email=None, password=None, **extra_fields):
-        extra_fields.setdefault("is_admin", False)
+        extra_fields.setdefault("is_staff", False)
+        extra_fields.setdefault("is_superuser", False)
         return self._custom_create_user(email, password, **extra_fields)
 
-    def create_superuser(self,email=None, password=None, **extra_fields):
-        extra_fields.setdefault("is_admin", True)
+    def create_superuser(self, email=None, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
 
-        if extra_fields.get("is_admin") is not True:
-            raise ValueError("Admin must have is_admin=True.")
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
 
         return self._custom_create_user(email, password, **extra_fields)
 
     # no change on def with_perm...
 
+# 99% just copy of PermissionsMixin...
 class CustomPermissionsMixin(models.Model):
     """
     Add the fields and methods necessary to support the Group and Permission
     models using the ModelBackend.
     """
+    is_superuser = models.BooleanField(
+        _("superuser status"),
+        default=False,
+        help_text=_(
+            "Designates that this user has all permissions without "
+            "explicitly assigning them."
+        ),
+    )
+
+    groups = models.ManyToManyField(
+        Group,
+        verbose_name=_("groups"),
+        blank=True,
+        help_text=_(
+            "The groups this user belongs to. A user will get all permissions "
+            "granted to each of their groups."
+        ),
+        related_name="applicationuser_set",
+        related_query_name="applicationuser",
+    )
+
+    user_permissions = models.ManyToManyField(
+        Permission,
+        verbose_name=_("user permissions"),
+        blank=True,
+        help_text=_("Specific permissions for this user."),
+        related_name="applicationuser_set",
+        related_query_name="applicationuser",
+    )    
+
     def has_perm(self, perm, obj=None):
         """
         Return True if the user has the specified permission. Query all
         available auth backends, but return immediately if any backend returns
         True. Thus, a user who has permission from a single auth backend is
-        assumefrom django.core.validators import RegexValidator
-
-class PhoneModel(models.Model):
-    ...
-    phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
-    phone_number = models.CharField(validators=[phone_regex], max_length=17, blank=True) # Validators should be a list
-d to have permission in general. If an object is provided, check
+        assumed to have permission in general. If an object is provided, check
         permissions for that object.
         """
-        # Active admins have all permissions.
-        if self.is_active and self.is_admin:
+        # Active superusers have all permissions.
+        if self.is_active and self.is_superuser:
             return True
 
         # Otherwise we need to check the backends.
@@ -98,33 +131,123 @@ d to have permission in general. If an object is provided, check
         Return True if the user has any permissions in the given app label.
         Use similar logic as has_perm(), above.
         """
-        # Active admins have all permissions.
-        if self.is_active and self.is_admin:
+        # Active superusers have all permissions.
+        if self.is_active and self.is_superuser:
             return True
 
         return _user_has_module_perms(self, app_label)
 
-class CustomUser(AbstractBaseUser,CustomPermissionsMixin):
+    # we don't want o create db table for this
+    class Meta:
+        abstract = True 
 
+# eventually, this is just a copy and past from 'class AbstractUser'
+# duplicated to allow us to customize later if necessary
+class ApplicationUser(AbstractBaseUser,CustomPermissionsMixin):
+    #Id: string
+     # not string
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    #FirstName: string
+    first_name = models.CharField(_("first name"), max_length=150, blank=True)
+
+    #AdditionalNames(optional): string[](In the databases we don’t have array, so we have to parse it.)
+    additional_names = ArrayField(
+        base_field = models.CharField(max_length=20,blank=True),
+        verbose_name="additional names",
+        size=10,
+        null=True
+    )
+
+    #LastName: string
+    last_name = models.CharField(_("last name"), max_length=150, blank=True)
+ 
+    #CreationDate: (see if there is special datatype in Jango) 
+    creation_date = models.DateTimeField(_("creation date"), default=timezone.now)
+    #AccountId: string
+    accountid = models.UUIDField(
+        primary_key=False,
+        default=uuid.uuid4,
+        editable=False
+    )
+    #RoleId: string
+    # temporary drop roleid b.c. "group"-based permission is available by def. in django 
+    # inherit 'Group' from CustomPermissionsMixin class
+
+    #Email Address
+    email_validator = EmailValidator()
     email = models.EmailField(
         verbose_name='email address',
         max_length=255,
         unique=True,
+        validators=[email_validator],
+        # error_messages={
+        #   "unique": _("An user with that email already exists."),
+        # },
     )
-    is_active = models.BooleanField(default=True)
-    is_admin = models.BooleanField(default=False)   
-    
-    # set the unique identifier 
-    USERNAME_FIELD = 'email'
+
+    #Phone Number
+    phone_regex = RegexValidator(
+        regex=r'^\+?1?\d{9,15}$', 
+        message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."
+    )
+    phone_number = models.CharField(
+        verbose_name="phone number",
+        max_length=15,
+        validators=[phone_regex],
+    )
+
+
+    # All other Jango specific needed fields for the credentials and etc.
+    # username_validator = UnicodeUsernameValidator()
+    is_staff = models.BooleanField(
+        _("staff status"),
+        default=False,
+        help_text=_("Designates whether the user can log into this admin site."),
+    )
+    is_active = models.BooleanField(
+        _("active"),
+        default=True,
+        help_text=_(
+            "Designates whether this user should be treated as active. "
+            "Unselect this instead of deleting accounts."
+        ),
+    )
 
     objects = CustomUserManager()
-    
-    # property -- getter func
-    @property
-    def is_staff(self):
-        "Is the user a member of staff?"
-        # design - all admins are staff
-        return self.is_admin
+
+
+    EMAIL_FIELD = "email"
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
+
+    # class Meta:
+    #     verbose_name = _("user")
+    #     verbose_name_plural = _("users")
+    #     abstract = True
+
+    def clean(self):
+        super().clean()
+        self.email = self.__class__.objects.normalize_email(self.email)
+
+    def get_full_name(self):
+        """
+        Return the first_name plus the last_name, with a space in between.
+        """
+        full_name = "%s %s" % (self.first_name, self.last_name)
+        return full_name.strip()
+
+    def get_short_name(self):
+        """Return the short name for the user."""
+        return self.first_name
+
+    def email_user(self, subject, message, from_email=None, **kwargs):
+        """Send an email to this user."""
+        send_mail(subject, message, from_email, [self.email], **kwargs)
+
 
 # class ApplicationAccount():
 #     pass
@@ -133,30 +256,8 @@ class CustomUser(AbstractBaseUser,CustomPermissionsMixin):
 # class ApplicationRole():
 #     pass
 # q. can we use "User"? --> Django default
-class ApplicationUser(models.Model):
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
-    # not string
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False
-    )
-    firstname = models.CharField(max_length=20)
-    lastname = models.CharField(max_length=20)
-    # we use json here
-    # To do
-    # add en/de-coder here to parse the field
-    additionalnames = ArrayField(base_field=models.CharField(max_length=20),verbose_name="additional names",size=10)
-    creationdate = models.DateTimeField(
-        verbose_name="create date",
-        default = timezone.now(),
-        max_length=20
-    )
-    accountid = models.CharField(max_length=50)
-    roleid = models.CharField(max_length=50)
-    phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
-    phone_number = models.CharField(verbose_name="phone number",validators=(phone_regex,), max_length=15)
-
+# class ApplicationUser(CustomAbstractUser):
+#     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
 
 
 

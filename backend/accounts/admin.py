@@ -2,25 +2,25 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser
-from .forms import CustomUserChangeForm, CustomUserCreationForm
+from .models import ApplicationUser
+from .forms import ApplicationUserChangeForm, ApplicationUserCreationForm
 # Register your models here.apps
 
 
-class CustomUserAdmin(UserAdmin):
+class ApplicationUserAdmin(UserAdmin):
     """
     A form to add and change user instances
     """
-    form = CustomUserChangeForm
-    add_form = CustomUserCreationForm
+    form = ApplicationUserChangeForm
+    add_form = ApplicationUserCreationForm
     
     # config. group and permisson 
     filter_horizontal = () 
 
     # removed username --> change the def. order
     ordering = ('email',)
-    list_display = ('email','is_active','is_admin')
-    list_filter = ('is_active','is_admin')
+    list_display = ('email','is_active','is_staff','first_name','last_name','additional_names','phone_number','creation_date','accountid')
+    list_filter = ('is_active','is_staff')
 
     fieldsets = (
         (None, {"fields": ("email", "password")}),
@@ -28,7 +28,7 @@ class CustomUserAdmin(UserAdmin):
         ("Permissions",{
             "fields": (
                 "is_active",
-                "is_admin",
+                "is_staff",
             )
         }),
     )
@@ -43,9 +43,7 @@ class CustomUserAdmin(UserAdmin):
     search_field = ('email',)
 
 # register the new UserAdmin
-admin.site.register(get_user_model(), CustomUserAdmin)
+admin.site.register(get_user_model(), ApplicationUserAdmin)
 
-# unregister teh Group model from adin
-admin.site.unregister(Group)
 
 
