@@ -1,4 +1,4 @@
-    B"react-router-dom"
+import {Link} from "react-router-dom" 
 import { setData } from "react"
 const handleDelete = (data,id) => {
     setData(data.filter(item => item.id !== id))
@@ -32,6 +32,7 @@ export const actionColumnModel = [
 ]
 
 export const actionRowModel = [
+// const actionRowModel = [
     {
         action: () => {
             return (

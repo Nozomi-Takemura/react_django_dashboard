@@ -26,7 +26,7 @@ const Sidebar = () => {
         <div className='sidebar'>
             <div className="top">
                 <Link to="/" style={{ textDecoration: "none"}}>
-                    <span className="logo">lamadmin</span>
+                    <span className="logo">Admin</span>
                 </Link>
             </div>
             <hr/>
@@ -37,6 +37,13 @@ const Sidebar = () => {
                             <DashboardIcon className="icon"/>
                             <span>Dashboard</span>
                         </li>
+                    <p className="title">BenchApp</p>
+                    <Link to="/benchapp/configuration" style= {{ textDecoration: "none" }}>
+                        <li>
+                            <DashboardIcon className="icon"/>
+                            <span>Configuration</span>
+                        </li>
+                    </Link>
                     <p className="title">LIST</p>
                     <Link to="/ApplicationAccount" style={{ textDecoration: "none" }}>
                         <li>

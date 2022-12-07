@@ -3,6 +3,9 @@ import Login from "./pages/login/Login"
 import Single from "./pages/single/Single"
 import New from "./pages/new/New"
 import List from "./pages/list/List"
+import Config from "./pages/config/Config"
+import Root from "./pages/root/Root"
+import Scheme from "./pages/scheme/Scheme"
 import "./style/dark.scss"
 import {
   BrowserRouter as Router,
@@ -37,12 +40,22 @@ function App() {
             <Route path="projects">
               <Route index element={<List/>}/>
               <Route path=":projectId" element={<Single/>}/>
+              <Route path="test" element={<div/>}/>
+                <Route path="model" element={<div/>}/>
               <Route path="new" element={<New inputs={projectInputs} title="Add New Project" />}/>
             </Route>
             <Route path="ApplicationAccount">
               <Route index element={<List/>}/>
               <Route path=":applicationAccountId" element={<Single/>}/>
               <Route path="new" element={<New inputs={ applicationAccounts } title="Add New ApplicationAccount"/>}/>
+            </Route>
+            {/* <Route path="benchapp" element={<Root/>}> */}
+            <Route path="benchapp">
+              {/* <Route index element={<List/>}/> */}
+              <Route path="configuration" element={<Scheme/>}/>
+                <Route path="scheme" element={<Scheme/>}/>
+                {/* {<Config/>}/> */}
+              {/* </Route> */}
             </Route>
           </Route>
         </Routes>
