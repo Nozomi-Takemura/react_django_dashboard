@@ -4,12 +4,13 @@ from django.contrib.auth.models import (
     BaseUserManager, AbstractBaseUser
 )
 from django.contrib.auth.hashers import make_password
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Group, Permission, _user_has_module_perms, _user_has_perm    
 from django.db import models
 from django.utils import timezone
 from django.contrib.postgres.fields.array import ArrayField
 from django.core.validators import RegexValidator, EmailValidator
 from django.utils.translation import gettext_lazy as _
+from django.utils.itercompat import is_iterable
 
 # test
 
@@ -243,6 +244,7 @@ class ApplicationUser(AbstractBaseUser,CustomPermissionsMixin):
         on_delete = models.CASCADE,
         blank = True,
         null = True,
+        # related_name = 'accounts',
         # related_name='owner_accountid'
     )
 
