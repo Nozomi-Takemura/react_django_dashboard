@@ -2,6 +2,9 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+React is used for frontend development and Django is used for backend development.
+The dashboard is under the development.
+
 ## Available Scripts
 
 In the project directory, you can run:
