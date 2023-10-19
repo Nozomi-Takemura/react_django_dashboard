@@ -1,3 +1,10 @@
+# Overview
+
+This repository contains backend and frontend of a dashboard application.
+The project is still in progress.
+The backend is created using python django framework. 
+The detailed implementation can be found in the backend subfolder. 
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
